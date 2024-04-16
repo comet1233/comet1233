@@ -1,10 +1,26 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:http/http.dart' as http;
 // Sample JSON data, replace it with actual data received from Raspberry Pi
 String? jsonDataString = '{"car": {"1": true, "2": false, "3": true, "4": true, "5":false, "6":true, "7":false, "8":true}}';
 Map<String, dynamic>? jsonData = jsonDataString != null ? jsonDecode(jsonDataString!) : null;
+
+
+
+Future<bool> getCarStatus(int id) async {
+  final response = await http.get(Uri.parse('http://172.18.18.26:8080/getcar/$id'));
+  if (response.statusCode == 200) {
+    // 解析回傳的 JSON 數據
+    final Map<String, dynamic> data = jsonDecode(response.body);
+    // 返回 true 或 false，表示車位是否被佔用
+    return data['status'];
+  } else {
+    // 如果請求失敗，則返回 null 或者處理其他錯誤情況
+    return false;
+  }
+}
+
 
 void main() {
   runApp(const MyApp());
@@ -45,7 +61,7 @@ class _MyAppState extends State<MyApp> {
             IconButton(
               icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
               onPressed: _toggleTheme,
-              
+
             ),
           ],
         ),
@@ -125,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                 obscureText: true,
               ),
             ),
-            
+
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
@@ -148,10 +164,10 @@ class _LoginPageState extends State<LoginPage> {
                 );
               },
               child: Text('Sign Up',
-                style: TextStyle(
-                  color: Theme.of(context).primaryColor,
-                  decoration: TextDecoration.underline,
-                )
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
+                    decoration: TextDecoration.underline,
+                  )
               ),
             ),
           ],
@@ -228,15 +244,15 @@ class _RegisterPageState extends State<RegisterPage> {
   }
   void _checkPasswordMatch() {
     setState(() {
-        if(_register_passwordController.text == _register_confrim_passwordController.text){
-          _isPasswordMatch = true;      
-         
-        }
-        else{
-          _isPasswordMatch = false;
-          _register_confrim_passwordController.clear();
-        }
+      if(_register_passwordController.text == _register_confrim_passwordController.text){
+        _isPasswordMatch = true;
+
       }
+      else{
+        _isPasswordMatch = false;
+        _register_confrim_passwordController.clear();
+      }
+    }
     );
   }
   void _checkEmptySpace(){
@@ -277,7 +293,7 @@ class _RegisterPageState extends State<RegisterPage> {
               child: TextField(
                 controller: _register_usernameController,
                 decoration: InputDecoration(
-                 
+
                   hintText: 'Username',
                   errorText: _isUsernameEmptySpace ? 'Please fill in all fields' : null,
                   errorStyle: const TextStyle(color: Colors.red),
@@ -296,7 +312,7 @@ class _RegisterPageState extends State<RegisterPage> {
               child: TextField(
                 controller: _register_passwordController,
                 decoration: InputDecoration(
-                  
+
                   hintText: 'Password',
                   errorText: _isPasswordEmptySpace ? 'Please fill in all fields' : null,
                   errorStyle: const TextStyle(color: Colors.red),
@@ -326,7 +342,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             ElevatedButton(
               onPressed: () {
                 // Check both conditions directly before proceeding
@@ -357,7 +373,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       MaterialPageRoute(builder: (context) => LoginPage()),
                     );
                   });
-                  
+
                 }
                 else if (_register_passwordController.text != _register_confrim_passwordController.text){
                   // Show error message if passwords do not match
@@ -384,7 +400,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   // Show error message if any field is empty
                   _checkEmptySpace();
                   _checkPasswordMatch();
-                  showDialog(  
+                  showDialog(
                     context: context,
                     builder: (context) {
                       return AlertDialog(
@@ -553,3 +569,4 @@ class _ParkingSpotState extends State<ParkingSpot> {
     );
   }
 }
+
