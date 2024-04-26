@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+String http_address = 'http://172.18.19.29:8080';
+
 void main() {
   runApp(const MyApp());
 }
@@ -169,38 +171,59 @@ class ThirdPage extends StatefulWidget {
   final int numOfCars;
 
   const ThirdPage({Key? key, required this.numOfCars}) : super(key: key);
-
   @override
   _ThirdPageState createState() => _ThirdPageState();
 }
 
-class _ThirdPageState extends State<ThirdPage> {
+class _ThirdPageState extends State with AutomaticKeepAliveClientMixin {
   Map<String, bool>? parkingStatus;
   bool _isLoading = true;
+  late Timer _timer;
 
   @override
   void initState() {
     super.initState();
+    // Fetch parking status initially
     fetchParkingStatus();
+    // Start a periodic timer to refresh data every 30 seconds
+    _timer = Timer.periodic(Duration(seconds: 3), (timer) {
+      fetchParkingStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Cancel the timer when the widget is disposed
+    _timer.cancel();
+    super.dispose();
   }
 
   Future<void> fetchParkingStatus() async {
+    setState(() {
+      _isLoading = true; // Set loading to true before fetching data
+    });
     Map<String, bool> status = {};
     print('Fetching parking status...');
-    await Future.forEach(List.generate(widget.numOfCars, (index) => index + 1), (int i) async {
-      print('Fetching status for car $i');
-      bool spotStatus = await getCarStatus(i);
-      status['car$i'] = spotStatus;
-    });
-    setState(() {
-      parkingStatus = status;
-      _isLoading = false; // Mark loading as completed
-    });
+    try {
+      await Future.forEach(
+          List.generate(10, (index) => index + 1), (int i) async {
+        print('Fetching status for car $i');
+        bool spotStatus = await getCarStatus(i);
+        status['car$i'] = spotStatus;
+      });
+      setState(() {
+        parkingStatus = status;
+        _isLoading = false; // Mark loading as completed
+      });
+    } catch (e) {
+      print('Error fetching parking status: $e');
+      // Handle error, for example, show a snackbar or toast
+    }
   }
 
   Future<bool> getCarStatus(int id) async {
     try {
-      final response = await http.get(Uri.parse('http://140.113.126.199:8080/getcar/$id'));
+      final response = await http.get(Uri.parse('$http_address/getcar/$id'));
       if (response.statusCode == 200) {
         final dynamic data = jsonDecode(response.body);
         if (data is bool) {
@@ -221,12 +244,13 @@ class _ThirdPageState extends State<ThirdPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
         title: const Text('Parking Status'),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Center(
               child: GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -235,7 +259,7 @@ class _ThirdPageState extends State<ThirdPage> {
                   crossAxisSpacing: 20,
                   childAspectRatio: 1,
                 ),
-                itemCount: widget.numOfCars,
+                itemCount: 10,
                 itemBuilder: (context, index) {
                   final spotNumber = index + 1;
                   final isOccupied = parkingStatus!['car$spotNumber'] ?? true;
@@ -243,9 +267,14 @@ class _ThirdPageState extends State<ThirdPage> {
                 },
               ),
             ),
+          
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
+
 
 class ParkingSpot extends StatefulWidget {
   final bool isOccupied;
