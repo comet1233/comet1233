@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-String http_address = 'http://172.18.19.29:8080';
+String http_address = 'http://172.18.19.166:8080';
+int refresh_interval = 5;
 
 void main() {
   runApp(const MyApp());
@@ -175,7 +176,7 @@ class ThirdPage extends StatefulWidget {
   _ThirdPageState createState() => _ThirdPageState();
 }
 
-class _ThirdPageState extends State with AutomaticKeepAliveClientMixin {
+class _ThirdPageState extends State<ThirdPage> with AutomaticKeepAliveClientMixin {
   Map<String, bool>? parkingStatus;
   bool _isLoading = true;
   late Timer _timer;
@@ -186,7 +187,7 @@ class _ThirdPageState extends State with AutomaticKeepAliveClientMixin {
     // Fetch parking status initially
     fetchParkingStatus();
     // Start a periodic timer to refresh data every 30 seconds
-    _timer = Timer.periodic(Duration(seconds: 3), (timer) {
+    _timer = Timer.periodic(Duration(seconds: refresh_interval), (timer) {
       fetchParkingStatus();
     });
   }
@@ -242,6 +243,8 @@ class _ThirdPageState extends State with AutomaticKeepAliveClientMixin {
     }
   }
 
+  bool? _previousLoadingState;
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -249,25 +252,40 @@ class _ThirdPageState extends State with AutomaticKeepAliveClientMixin {
       appBar: AppBar(
         title: const Text('Parking Status'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Center(
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 20,
-                  childAspectRatio: 1,
-                ),
-                itemCount: 10,
-                itemBuilder: (context, index) {
-                  final spotNumber = index + 1;
-                  final isOccupied = parkingStatus!['car$spotNumber'] ?? true;
-                  return ParkingSpot(isOccupied: isOccupied);
-                },
-              ),
-            ),
-          
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500), // Adjust animation duration as needed
+        child: _isLoading
+            ? _buildLoadingIndicator(_previousLoadingState)
+            : _buildParkingGrid(),
+      ),
+    );
+  }
+
+  Widget _buildLoadingIndicator(bool? previousLoadingState) {
+    // If previousLoadingState is null or true, show a CircularProgressIndicator,
+    // otherwise show the content from the last state where isLoading was false.
+    return Center(
+      key: UniqueKey(), // Ensure AnimatedSwitcher recognizes this as a new child
+      child: previousLoadingState == null
+          ? CircularProgressIndicator()
+          : _buildParkingGrid(),
+    );
+  }
+
+  Widget _buildParkingGrid() {
+    return Center(
+      key: UniqueKey(), // Ensure AnimatedSwitcher recognizes this as a new child
+      child: CustomMultiChildLayout(
+        delegate: _ParkingLayoutDelegate(), // Use custom layout delegate
+        children: List.generate(widget.numOfCars, (index) {
+          final spotNumber = index + 1;
+          final isOccupied = parkingStatus!['car$spotNumber'] ?? true;
+          return LayoutId(
+            id: 'car$spotNumber',
+            child: ParkingSpot(isOccupied: isOccupied),
+          );
+        }),
+      ),
     );
   }
 
@@ -275,6 +293,30 @@ class _ThirdPageState extends State with AutomaticKeepAliveClientMixin {
   bool get wantKeepAlive => true;
 }
 
+class _ParkingLayoutDelegate extends MultiChildLayoutDelegate {
+  @override
+  void performLayout(Size size) {
+    final childWidth = size.width / 2;
+    final childHeight = size.height / 5;
+    final totalChildren = 10;
+    for (int i = 0; i < totalChildren; i++) {
+      final String childId = 'car${i + 1}';
+      if (hasChild(childId)) {
+        final Size childSize = layoutChild(childId, BoxConstraints.loose(size));
+        final offsetX = i.isEven ? 0.0 : childWidth;
+        final offsetY = (i / 2).floor() * childHeight;
+        positionChild(childId, Offset(offsetX, offsetY));
+      }
+    }
+  }
+
+  @override
+  bool shouldRelayout(covariant MultiChildLayoutDelegate oldDelegate) {
+    return false;
+  }
+
+  int get count => 10; // Change this value according to the number of parking spots
+}
 
 class ParkingSpot extends StatefulWidget {
   final bool isOccupied;
@@ -308,3 +350,5 @@ class _ParkingSpotState extends State<ParkingSpot> {
     );
   }
 }
+
+
