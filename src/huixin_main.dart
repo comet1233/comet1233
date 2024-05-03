@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-String http_address = 'http://172.18.19.166:8080';
+String http_address = 'http://140.113.126.199:8080';
 int refresh_interval = 5;
 
 void main() {
@@ -122,8 +122,6 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  String? _selectedOption;
-  final List<String> _options = ['Option 1', 'Option 2', 'Option 3'];
 
   @override
   Widget build(BuildContext context) {
@@ -296,16 +294,29 @@ class _ThirdPageState extends State<ThirdPage> with AutomaticKeepAliveClientMixi
 class _ParkingLayoutDelegate extends MultiChildLayoutDelegate {
   @override
   void performLayout(Size size) {
-    final childWidth = size.width / 2;
-    final childHeight = size.height / 5;
-    final totalChildren = 10;
+    final childWidth = size.width / 7 - 3.0; // 设置每个车位的宽度
+    final childHeight = 100.0; // 设置每个车位的高度
+    final spacing = 3.0; // 设置每个车位之间的间距
+    final totalChildren = 10; // 设置总车位数
+
+
+    final offsetX = <double>[childWidth*2 + spacing*2, childWidth * 3 + spacing * 3, childWidth * 4 + spacing * 4,
+                            1.0*childWidth, childWidth * 5.5 + spacing * 6, 
+                            1.0*childWidth, childWidth * 5.5 + spacing * 6,
+                            childWidth*2 + spacing*2, childWidth * 3 + spacing * 3, childWidth * 4 + spacing * 4];
+    final offsetY = <double>[ 0, 0, 0, 1.75 * childHeight + 2*spacing, 1.75*childHeight + 2*spacing,
+                           2.75*childHeight + 3*spacing, 2.75*childHeight + 3*spacing,
+                            childHeight * 5 + spacing * 5, childHeight * 5 + spacing * 5, childHeight * 5 + spacing * 5];
     for (int i = 0; i < totalChildren; i++) {
       final String childId = 'car${i + 1}';
+
       if (hasChild(childId)) {
-        final Size childSize = layoutChild(childId, BoxConstraints.loose(size));
-        final offsetX = i.isEven ? 0.0 : childWidth;
-        final offsetY = (i / 2).floor() * childHeight;
-        positionChild(childId, Offset(offsetX, offsetY));
+        if(i<=2 || i>=7)
+          final childSize = layoutChild(childId, BoxConstraints.loose(Size(childWidth, childHeight/2)));
+        else 
+          final childSize = layoutChild(childId, BoxConstraints.loose(Size(childWidth/2, childHeight)));
+        
+        positionChild(childId, Offset(offsetX[i], offsetY[i]));
       }
     }
   }
@@ -314,9 +325,9 @@ class _ParkingLayoutDelegate extends MultiChildLayoutDelegate {
   bool shouldRelayout(covariant MultiChildLayoutDelegate oldDelegate) {
     return false;
   }
-
-  int get count => 10; // Change this value according to the number of parking spots
+  int get count => 10;
 }
+
 
 class ParkingSpot extends StatefulWidget {
   final bool isOccupied;
@@ -351,4 +362,136 @@ class _ParkingSpotState extends State<ParkingSpot> {
   }
 }
 
+//--------------------------------------------------------------------------------------------
 
+// // Copyright 2013 The Flutter Authors. All rights reserved.
+// // Use of this source code is governed by a BSD-style license that can be
+// // found in the LICENSE file.
+
+// import 'dart:async';
+
+// import 'package:flutter/material.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+// import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
+// import 'package:parking_0331/location_service.dart';
+
+// void main() => runApp(Myapp());
+
+// class Myapp extends StatelessWidget {
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       title: 'Flutter Google Maps',
+//       home: MapSample(),
+//     );
+//   }
+// }
+
+// class MapSample extends StatefulWidget {
+//   const MapSample({super.key});
+
+//   @override
+//   State<MapSample> createState() => MapSampleState();
+// }
+
+// class MapSampleState extends State<MapSample> {
+//   final Completer<GoogleMapController> _controller =Completer<GoogleMapController>();
+//   final TextEditingController _searchController = TextEditingController();
+
+//   static const CameraPosition _kGooglePlex = CameraPosition(
+//     target: LatLng(37.42796133580664, -122.085749655962),
+//     zoom: 14.4746,
+//   );
+//   static final Marker _kGooglePlexMarker = Marker(
+//       markerId: MarkerId('_kGooglePlex'),
+//       position: LatLng(37.42796133580664, -122.085749655962),
+//       infoWindow: InfoWindow(title: 'Googleplex'),
+//       icon: BitmapDescriptor.defaultMarker);
+//   static const CameraPosition _kLake = CameraPosition(
+//       bearing: 192.8334901395799,
+//       target: LatLng(37.43296265331129, -122.08832357078792),
+//       tilt: 59.440717697143555,
+//       zoom: 19.151926040649414);
+
+//   static final Marker _kLakePlexMarker = Marker(
+//       markerId: MarkerId('_kLakePlex'),
+//       position: LatLng(37.43296265331129, -122.08832357078792),
+//       infoWindow: InfoWindow(title: 'Lakeplex'),
+//       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet));
+//   static final Polyline _kPolyline = Polyline(
+//     polylineId: PolylineId('poly'),
+//     color: Colors.red,
+//     points: <LatLng>[
+//       LatLng(37.42796133580664, -122.085749655962),
+//       LatLng(37.43296265331129, -122.08832357078792),
+//     ],
+//   );
+//   static final Polygon _kPolygon = Polygon(
+//     polygonId: PolygonId('poly'),
+//     fillColor: Colors.green,
+//     points: <LatLng>[
+//       LatLng(37.42796133580664, -122.085749655962),
+//       LatLng(37.43296265331129, -122.08832357078792),
+//       LatLng(37.43296265331129, -122.08832357078792),
+//       LatLng(37.42796133580664, -122.085749655962),
+//     ],
+//   );
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Google Maps'),
+//         backgroundColor: Colors.green[700],
+//       ),
+//       body: Column(
+//         children: [
+//           Row(children: [
+//             Expanded(child: TextFormField(
+//               controller: _searchController,
+//               decoration: InputDecoration(
+//                 hintText: 'Search',
+//                 border: OutlineInputBorder(),
+//               ),
+//               onChanged: (value) {
+//                 print(value);
+//               },
+//             )),
+//             IconButton(
+//               icon: Icon(Icons.search),
+//               onPressed: () {
+//                 LocationService().getPlace(_searchController.text);
+//               },
+//             ),
+//           ],),
+
+//           Expanded(
+//             child: GoogleMap(
+//               mapType: MapType.hybrid,
+//               markers: {
+//                 _kGooglePlexMarker, /*_kLakePlexMarker*/
+//               },
+//               // polylines: { _kPolyline },
+//               // polygons: { _kPolygon },
+//               initialCameraPosition: _kGooglePlex,
+//               onMapCreated: (GoogleMapController controller) {
+//                 _controller.complete(controller);
+//               },
+//             ),
+//           ),
+//         ],
+//       ),
+//       // floatingActionButton: FloatingActionButton.extended(
+//       //   onPressed: _goToTheLake,
+//       //   label: const Text('To the lake!'),
+//       //   icon: const Icon(Icons.directions_boat),
+//       // ),
+//     );
+//   }
+
+//   Future<void> _goToTheLake() async {
+//     final GoogleMapController controller = await _controller.future;
+//     await controller.animateCamera(CameraUpdate.newCameraPosition(_kLake));
+//   }
+// }
