@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+String http_address = 'http://172.18.19.166:8080';
+int refresh_interval = 5;
+
 void main() {
   runApp(const MyApp());
 }
@@ -169,38 +172,59 @@ class ThirdPage extends StatefulWidget {
   final int numOfCars;
 
   const ThirdPage({Key? key, required this.numOfCars}) : super(key: key);
-
   @override
   _ThirdPageState createState() => _ThirdPageState();
 }
 
-class _ThirdPageState extends State<ThirdPage> {
+class _ThirdPageState extends State<ThirdPage> with AutomaticKeepAliveClientMixin {
   Map<String, bool>? parkingStatus;
   bool _isLoading = true;
+  late Timer _timer;
 
   @override
   void initState() {
     super.initState();
+    // Fetch parking status initially
     fetchParkingStatus();
+    // Start a periodic timer to refresh data every 30 seconds
+    _timer = Timer.periodic(Duration(seconds: refresh_interval), (timer) {
+      fetchParkingStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Cancel the timer when the widget is disposed
+    _timer.cancel();
+    super.dispose();
   }
 
   Future<void> fetchParkingStatus() async {
+    setState(() {
+      _isLoading = true; // Set loading to true before fetching data
+    });
     Map<String, bool> status = {};
     print('Fetching parking status...');
-    await Future.forEach(List.generate(widget.numOfCars, (index) => index + 1), (int i) async {
-      print('Fetching status for car $i');
-      bool spotStatus = await getCarStatus(i);
-      status['car$i'] = spotStatus;
-    });
-    setState(() {
-      parkingStatus = status;
-      _isLoading = false; // Mark loading as completed
-    });
+    try {
+      await Future.forEach(
+          List.generate(10, (index) => index + 1), (int i) async {
+        print('Fetching status for car $i');
+        bool spotStatus = await getCarStatus(i);
+        status['car$i'] = spotStatus;
+      });
+      setState(() {
+        parkingStatus = status;
+        _isLoading = false; // Mark loading as completed
+      });
+    } catch (e) {
+      print('Error fetching parking status: $e');
+      // Handle error, for example, show a snackbar or toast
+    }
   }
 
   Future<bool> getCarStatus(int id) async {
     try {
-      final response = await http.get(Uri.parse('http://140.113.126.199:8080/getcar/$id'));
+      final response = await http.get(Uri.parse('$http_address/getcar/$id'));
       if (response.statusCode == 200) {
         final dynamic data = jsonDecode(response.body);
         if (data is bool) {
@@ -219,32 +243,79 @@ class _ThirdPageState extends State<ThirdPage> {
     }
   }
 
+  bool? _previousLoadingState;
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
         title: const Text('Parking Status'),
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Center(
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 20,
-                  childAspectRatio: 1,
-                ),
-                itemCount: widget.numOfCars,
-                itemBuilder: (context, index) {
-                  final spotNumber = index + 1;
-                  final isOccupied = parkingStatus!['car$spotNumber'] ?? true;
-                  return ParkingSpot(isOccupied: isOccupied);
-                },
-              ),
-            ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500), // Adjust animation duration as needed
+        child: _isLoading
+            ? _buildLoadingIndicator(_previousLoadingState)
+            : _buildParkingGrid(),
+      ),
     );
   }
+
+  Widget _buildLoadingIndicator(bool? previousLoadingState) {
+    // If previousLoadingState is null or true, show a CircularProgressIndicator,
+    // otherwise show the content from the last state where isLoading was false.
+    return Center(
+      key: UniqueKey(), // Ensure AnimatedSwitcher recognizes this as a new child
+      child: previousLoadingState == null
+          ? CircularProgressIndicator()
+          : _buildParkingGrid(),
+    );
+  }
+
+  Widget _buildParkingGrid() {
+    return Center(
+      key: UniqueKey(), // Ensure AnimatedSwitcher recognizes this as a new child
+      child: CustomMultiChildLayout(
+        delegate: _ParkingLayoutDelegate(), // Use custom layout delegate
+        children: List.generate(widget.numOfCars, (index) {
+          final spotNumber = index + 1;
+          final isOccupied = parkingStatus!['car$spotNumber'] ?? true;
+          return LayoutId(
+            id: 'car$spotNumber',
+            child: ParkingSpot(isOccupied: isOccupied),
+          );
+        }),
+      ),
+    );
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+}
+
+class _ParkingLayoutDelegate extends MultiChildLayoutDelegate {
+  @override
+  void performLayout(Size size) {
+    final childWidth = size.width / 2;
+    final childHeight = size.height / 5;
+    final totalChildren = 10;
+    for (int i = 0; i < totalChildren; i++) {
+      final String childId = 'car${i + 1}';
+      if (hasChild(childId)) {
+        final Size childSize = layoutChild(childId, BoxConstraints.loose(size));
+        final offsetX = i.isEven ? 0.0 : childWidth;
+        final offsetY = (i / 2).floor() * childHeight;
+        positionChild(childId, Offset(offsetX, offsetY));
+      }
+    }
+  }
+
+  @override
+  bool shouldRelayout(covariant MultiChildLayoutDelegate oldDelegate) {
+    return false;
+  }
+
+  int get count => 10; // Change this value according to the number of parking spots
 }
 
 class ParkingSpot extends StatefulWidget {
@@ -279,3 +350,5 @@ class _ParkingSpotState extends State<ParkingSpot> {
     );
   }
 }
+
+
