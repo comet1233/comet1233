@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:http/http.dart' as http;
 
-String http_address = 'http://10.20.2.191:8080';
+String http_address = 'http://140.113.177.190:8080';
 int refresh_interval = 5;
 
 
