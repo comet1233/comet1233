@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 LatLng initialPosition = LatLng(24.166666, 120.683333); // Taichung, Jinping St
 
-final List<Map<String, dynamic>> parkingLots = [
+List<Map<String, dynamic>> carParkingLots = [
   {
     'name': 'Parking 1',
     'location': LatLng(24.157075, 120.666144),
@@ -30,6 +30,30 @@ final List<Map<String, dynamic>> parkingLots = [
   },
 ];
 
+List<Map<String, dynamic>> bikesParkingLots = [
+  {
+    'name': 'Bike 1',
+    'location': LatLng(24.158100, 120.666999),
+    'remaining': 10,
+    'rate': 20,
+    'address': 'Nearby'
+  },
+  {
+    'name': 'Bike 2',
+    'location': LatLng(24.157150, 120.680000),
+    'remaining': 5,
+    'rate': 15,
+    'address': 'Nearby'
+  },
+  {
+    'name': 'Bike 3',
+    'location': LatLng(24.156000, 120.675000),
+    'remaining': 8,
+    'rate': 25,
+    'address': 'Nearby'
+  },
+];
+
 class ParkingMap extends StatefulWidget {
   @override
   _ParkingMapState createState() => _ParkingMapState();
@@ -39,13 +63,6 @@ class _ParkingMapState extends State<ParkingMap> {
   bool showParking = true;
   bool showBikes = false;
   bool showScooters = false;
-
-  final List<LatLng> bikeLocations = List.generate(3, (index) {
-    return LatLng(
-      initialPosition.latitude + (Random().nextDouble() - 0.5) * 0.01,
-      initialPosition.longitude + (Random().nextDouble() - 0.5) * 0.01,
-    );
-  });
 
   final List<LatLng> scooterLocations = List.generate(3, (index) {
     return LatLng(
@@ -79,31 +96,34 @@ class _ParkingMapState extends State<ParkingMap> {
             top: 50,
             child: Column(
               children: [
-                ElevatedButton(
-                  onPressed: () {
+                Switch(
+                  // title: Text('Show Parking Lots'),
+                  value: showParking,
+                  onChanged: (value) {
                     setState(() {
-                      showParking = !showParking;
+                      showParking = value;
                     });
                   },
-                  child: Text("Toggle Parking"),
                 ),
                 SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () {
+                Switch(
+                  // title: Text('Show Bikes'),
+                  value: showBikes,
+                  onChanged: (value) {
                     setState(() {
-                      showBikes = !showBikes;
+                      showBikes = value;
                     });
                   },
-                  child: Text("Toggle Bikes"),
                 ),
                 SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () {
+                Switch(
+                  // title: Text('Show Scooters'),
+                  value: showScooters,
+                  onChanged: (value) {
                     setState(() {
-                      showScooters = !showScooters;
+                      showScooters = value;
                     });
                   },
-                  child: Text("Toggle Scooters"),
                 ),
               ],
             ),
@@ -134,7 +154,7 @@ class _ParkingMapState extends State<ParkingMap> {
     // 停車場位置的 Marker
     if (showParking) {
       markers.addAll(
-        parkingLots.map((lot) {
+        carParkingLots.map((lot) {
           return Marker(
             width: 80.0,
             height: 80.0,
@@ -158,16 +178,21 @@ class _ParkingMapState extends State<ParkingMap> {
     // 共享單車位置的 Marker
     if (showBikes) {
       markers.addAll(
-        bikeLocations.map((location) {
+        bikesParkingLots.map((lot) {
           return Marker(
             width: 80.0,
             height: 80.0,
-            point: location,
-            builder: (ctx) => Column(
-              children: [
-                Icon(Icons.pedal_bike, color: Colors.green, size: 40.0),
-                Text('Bikes', style: TextStyle(color: Colors.black)),
-              ],
+            point: lot['location'],
+            builder: (ctx) => GestureDetector(
+              onTap: () {
+                _showParkingDetails(context, lot);
+              },
+              child: Column(
+                children: [
+                  Text('${lot['remaining']} / ${lot['rate']}'),
+                  Icon(Icons.pedal_bike, color: Colors.green, size: 40.0),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -212,8 +237,9 @@ class _ParkingMapState extends State<ParkingMap> {
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
-                  Navigator.of(context).pop();  // 先關閉對話框
-                  final url = 'https://www.google.com/maps/dir/?api=1&origin=${initialPosition.latitude},${initialPosition.longitude}&destination=${lot['location'].latitude},${lot['location'].longitude}';
+                  Navigator.of(context).pop(); // 先關閉對話框
+                  final url =
+                      'https://www.google.com/maps/dir/?api=1&origin=${initialPosition.latitude},${initialPosition.longitude}&destination=${lot['location'].latitude},${lot['location'].longitude}';
                   if (await canLaunch(url)) {
                     await launch(url);
                   } else {
